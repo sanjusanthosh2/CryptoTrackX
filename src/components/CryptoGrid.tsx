@@ -1,8 +1,7 @@
-
-import { useState } from 'react';
-import { CryptoCard } from './CryptoCard';
-import { CryptoChart } from './CryptoChart';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { CryptoCard } from "./CryptoCard";
+import { NetworkStatus } from "./NetworkStatus";
+import { Loader2 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 interface CryptoData {
   id: string;
@@ -11,83 +10,140 @@ interface CryptoData {
   current_price: number;
   price_change_percentage_24h: number;
   market_cap: number;
-  total_volume: number;
+  market_cap_rank: number;
   image: string;
+  total_volume: number;
+  circulating_supply: number;
+  max_supply?: number;
 }
 
 interface CryptoGridProps {
   cryptos: CryptoData[];
-  loading: boolean;
-  onRefresh: () => void;
+  isLoading: boolean;
+  error: string | null;
+  favorites: Set<string>;
+  onToggleFavorite: (crypto: CryptoData) => void;
+  onViewChart: (crypto: CryptoData) => void;
+  showFavorites: boolean;
 }
 
-export const CryptoGrid = ({ cryptos, loading, onRefresh }: CryptoGridProps) => {
-  const [selectedCrypto, setSelectedCrypto] = useState<CryptoData | null>(null);
-  const [chartOpen, setChartOpen] = useState(false);
-
-  const handleCryptoClick = (crypto: CryptoData) => {
-    setSelectedCrypto(crypto);
-    setChartOpen(true);
-  };
-
-  if (loading) {
+export function CryptoGrid({
+  cryptos,
+  isLoading,
+  error,
+  favorites,
+  onToggleFavorite,
+  onViewChart,
+  showFavorites,
+}: CryptoGridProps) {
+  if (isLoading) {
     return (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {Array.from({ length: 12 }).map((_, index) => (
-          <div
-            key={index}
-            className="bg-slate-800/50 backdrop-blur-sm rounded-xl p-6 border border-slate-700 animate-pulse"
-          >
-            <div className="flex items-center space-x-3 mb-4">
-              <div className="w-10 h-10 bg-slate-700 rounded-full"></div>
-              <div className="space-y-2">
-                <div className="h-4 bg-slate-700 rounded w-20"></div>
-                <div className="h-3 bg-slate-700 rounded w-16"></div>
-              </div>
-            </div>
-            <div className="space-y-3">
-              <div className="h-6 bg-slate-700 rounded w-24"></div>
-              <div className="h-4 bg-slate-700 rounded w-16"></div>
-            </div>
+      <div className="flex items-center justify-center py-20">
+        <div className="text-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin mx-auto text-crypto-green" />
+          <p className="text-muted-foreground">Loading cryptocurrency data...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-8">
+        <Alert className="border-crypto-red/20 bg-crypto-red/10">
+          <AlertDescription className="text-crypto-red">
+            {error}
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+
+  // Filter cryptos based on showFavorites flag
+  const displayCryptos = showFavorites
+    ? cryptos.filter(crypto => favorites.has(crypto.id))
+    : cryptos;
+
+  if (showFavorites && displayCryptos.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <div className="space-y-4">
+          <div className="w-24 h-24 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+            <span className="text-4xl">⭐</span>
           </div>
-        ))}
+          <h3 className="text-xl font-semibold">No Favorites Yet</h3>
+          <p className="text-muted-foreground max-w-md mx-auto">
+            Start building your watchlist by clicking the star icon on any cryptocurrency card.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (displayCryptos.length === 0) {
+    return (
+      <div className="text-center py-20">
+        <div className="space-y-4">
+          <div className="w-24 h-24 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+            <span className="text-4xl">🔍</span>
+          </div>
+          <h3 className="text-xl font-semibold">No Results Found</h3>
+          <p className="text-muted-foreground">
+            Try adjusting your search query or check back later.
+          </p>
+        </div>
       </div>
     );
   }
 
   return (
-    <>
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        {cryptos.map((crypto) => (
-          <CryptoCard
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">
+            {showFavorites ? "Your Favorites" : "Cryptocurrency Prices"}
+          </h2>
+          <p className="text-muted-foreground">
+            {showFavorites
+              ? `${displayCryptos.length} favorite${displayCryptos.length !== 1 ? 's' : ''}`
+              : `Top ${displayCryptos.length} cryptocurrencies by market cap`}
+          </p>
+        </div>
+        
+        {/* Network Status */}
+        <div className="hidden sm:flex items-center space-x-2">
+          <NetworkStatus />
+        </div>
+      </div>
+
+      {/* Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        {displayCryptos.map((crypto, index) => (
+          <div
             key={crypto.id}
-            crypto={crypto}
-            onClick={() => handleCryptoClick(crypto)}
-          />
+            style={{
+              animationDelay: `${index * 0.1}s`,
+            }}
+          >
+            <CryptoCard
+              crypto={crypto}
+              isFavorite={favorites.has(crypto.id)}
+              onToggleFavorite={onToggleFavorite}
+              onViewChart={onViewChart}
+            />
+          </div>
         ))}
       </div>
 
-      <Dialog open={chartOpen} onOpenChange={setChartOpen}>
-        <DialogContent className="max-w-4xl bg-slate-900 border-slate-700">
-          <DialogHeader>
-            <DialogTitle className="text-white flex items-center space-x-3">
-              {selectedCrypto && (
-                <>
-                  <img 
-                    src={selectedCrypto.image} 
-                    alt={selectedCrypto.name}
-                    className="w-8 h-8"
-                  />
-                  <span>{selectedCrypto.name} ({selectedCrypto.symbol.toUpperCase()})</span>
-                </>
-              )}
-            </DialogTitle>
-          </DialogHeader>
-          {selectedCrypto && (
-            <CryptoChart cryptoId={selectedCrypto.id} cryptoName={selectedCrypto.name} />
-          )}
-        </DialogContent>
-      </Dialog>
-    </>
+      {/* Load More Indicator */}
+      {!showFavorites && displayCryptos.length > 0 && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground text-sm">
+            Showing top {displayCryptos.length} cryptocurrencies
+          </p>
+        </div>
+      )}
+    </div>
   );
-};
+}

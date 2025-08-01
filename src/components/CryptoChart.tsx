@@ -1,136 +1,267 @@
-
-import { useState, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
-import { Button } from '@/components/ui/button';
-import { toast } from '@/hooks/use-toast';
+import { useState, useEffect } from "react";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Loader2, TrendingUp, TrendingDown, X } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { apiService } from "@/services/api";
 
 interface ChartData {
-  date: string;
-  price: number;
   timestamp: number;
+  price: number;
+  date: string;
+}
+
+interface CryptoData {
+  id: string;
+  name: string;
+  symbol: string;
+  current_price: number;
+  price_change_percentage_24h: number;
+  market_cap_rank: number;
+  image: string;
 }
 
 interface CryptoChartProps {
-  cryptoId: string;
-  cryptoName: string;
+  crypto: CryptoData | null;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
-export const CryptoChart = ({ cryptoId, cryptoName }: CryptoChartProps) => {
-  const [chartData, setChartData] = useState<ChartData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [timeframe, setTimeframe] = useState('7');
+const timeframes = [
+  { label: "7D", days: "7" },
+  { label: "30D", days: "30" },
+  { label: "90D", days: "90" },
+  { label: "1Y", days: "365" },
+];
 
-  const fetchChartData = async (days: string) => {
+export function CryptoChart({ crypto, isOpen, onClose }: CryptoChartProps) {
+  const [chartData, setChartData] = useState<ChartData[]>([]);
+  const [selectedTimeframe, setSelectedTimeframe] = useState("7");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (crypto && isOpen) {
+      fetchChartData(crypto.id, selectedTimeframe);
+    }
+  }, [crypto, selectedTimeframe, isOpen]);
+
+  const fetchChartData = async (cryptoId: string, days: string) => {
+    setIsLoading(true);
+    setError(null);
+
     try {
-      setLoading(true);
-      console.log(`Fetching chart data for ${cryptoId} (${days} days)`);
+      const data = await apiService.getCryptoChart(cryptoId, days);
       
-      const response = await fetch(
-        `https://api.coingecko.com/api/v3/coins/${cryptoId}/market_chart?vs_currency=usd&days=${days}`
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch chart data');
-      }
-      
-      const data = await response.json();
-      
-      const formattedData = data.prices.map((price: [number, number]) => ({
-        timestamp: price[0],
-        date: new Date(price[0]).toLocaleDateString(),
-        price: price[1]
+      const formattedData: ChartData[] = data.prices.map(([timestamp, price]: [number, number]) => ({
+        timestamp,
+        price,
+        date: new Date(timestamp).toLocaleDateString(),
       }));
-      
+
       setChartData(formattedData);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching chart data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load chart data. Please try again.",
-        variant: "destructive",
-      });
-      setLoading(false);
+    } catch (err: any) {
+      setError(err.message || "Failed to load chart data. Please try again later.");
+      console.error("Chart data fetch error:", err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchChartData(timeframe);
-  }, [cryptoId, timeframe]);
+  const formatPrice = (price: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: price < 1 ? 6 : 2,
+    }).format(price);
+  };
 
-  const timeframes = [
-    { label: '7D', value: '7' },
-    { label: '30D', value: '30' },
-    { label: '90D', value: '90' },
-    { label: '1Y', value: '365' }
-  ];
+  const calculatePriceChange = () => {
+    if (chartData.length < 2) return { change: 0, percentage: 0 };
+    
+    const firstPrice = chartData[0]?.price || 0;
+    const lastPrice = chartData[chartData.length - 1]?.price || 0;
+    const change = lastPrice - firstPrice;
+    const percentage = firstPrice > 0 ? (change / firstPrice) * 100 : 0;
+    
+    return { change, percentage };
+  };
+
+  const { change, percentage } = calculatePriceChange();
+  const isPositive = change >= 0;
+  const TrendIcon = isPositive ? TrendingUp : TrendingDown;
+
+  if (!crypto) return null;
 
   return (
-    <div className="p-4">
-      <div className="flex justify-between items-center mb-6">
-        <h3 className="text-lg font-semibold text-white">
-          {cryptoName} Price Chart
-        </h3>
-        
-        <div className="flex space-x-2">
-          {timeframes.map((tf) => (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-4xl h-[80vh] p-0 glass-card border-crypto-green/20">
+        <DialogHeader className="p-6 pb-0">
+          <div className="flex items-start justify-between">
+            <div className="flex items-center space-x-4">
+              <img
+                src={crypto.image}
+                alt={crypto.name}
+                className="w-12 h-12 rounded-full"
+              />
+              <div>
+                <DialogTitle className="text-2xl gradient-text">
+                  {crypto.name} ({crypto.symbol.toUpperCase()})
+                </DialogTitle>
+                <div className="flex items-center space-x-2 mt-1">
+                  <Badge variant="secondary">
+                    Rank #{crypto.market_cap_rank}
+                  </Badge>
+                  <span className="text-3xl font-bold">
+                    {formatPrice(crypto.current_price)}
+                  </span>
+                </div>
+              </div>
+            </div>
             <Button
-              key={tf.value}
-              variant={timeframe === tf.value ? "default" : "outline"}
+              variant="ghost"
               size="sm"
-              onClick={() => setTimeframe(tf.value)}
-              className={timeframe === tf.value 
-                ? "bg-blue-500 hover:bg-blue-600" 
-                : "border-slate-600 text-gray-300 hover:bg-slate-700"
-              }
+              onClick={onClose}
+              className="hover:bg-muted/50"
             >
-              {tf.label}
+              <X className="h-4 w-4" />
             </Button>
-          ))}
-        </div>
-      </div>
+          </div>
+        </DialogHeader>
 
-      {loading ? (
-        <div className="h-96 flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div className="flex-1 p-6 space-y-6">
+          {/* Timeframe Selector */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              {timeframes.map((timeframe) => (
+                <Button
+                  key={timeframe.days}
+                  variant={selectedTimeframe === timeframe.days ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedTimeframe(timeframe.days)}
+                  className="min-w-[60px]"
+                >
+                  {timeframe.label}
+                </Button>
+              ))}
+            </div>
+
+            {/* Price Change */}
+            {chartData.length > 0 && (
+              <div className={`flex items-center space-x-2 ${isPositive ? 'text-crypto-green' : 'text-crypto-red'}`}>
+                <TrendIcon className="h-5 w-5" />
+                <span className="font-semibold">
+                  {isPositive ? '+' : ''}{formatPrice(Math.abs(change))}
+                </span>
+                <span className="text-sm">
+                  ({isPositive ? '+' : ''}{percentage.toFixed(2)}%)
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Chart */}
+          <Card className="h-96 p-4 bg-muted/20">
+            {isLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-4">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-crypto-green" />
+                  <p className="text-muted-foreground">Loading chart data...</p>
+                </div>
+              </div>
+            ) : error ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-center space-y-2">
+                  <p className="text-crypto-red">{error}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => fetchChartData(crypto.id, selectedTimeframe)}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              </div>
+            ) : chartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={chartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                  <XAxis
+                    dataKey="date"
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                    tickLine={false}
+                    axisLine={false}
+                    tickFormatter={(value) => `$${value.toFixed(2)}`}
+                  />
+                  <Tooltip
+                    content={({ active, payload, label }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="glass-card p-3 border border-border/50">
+                            <p className="text-sm text-muted-foreground">{label}</p>
+                            <p className="font-semibold">
+                              {formatPrice(payload[0].value as number)}
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="price"
+                    stroke={isPositive ? "hsl(var(--crypto-green))" : "hsl(var(--crypto-red))"}
+                    strokeWidth={2}
+                    dot={false}
+                    activeDot={{ r: 4, stroke: "hsl(var(--crypto-green))", strokeWidth: 2 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <p className="text-muted-foreground">No chart data available</p>
+              </div>
+            )}
+          </Card>
+
+          {/* Additional Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="text-center space-y-1">
+              <p className="text-muted-foreground text-sm">24h Change</p>
+              <p className={`font-semibold ${crypto.price_change_percentage_24h >= 0 ? 'text-crypto-green' : 'text-crypto-red'}`}>
+                {crypto.price_change_percentage_24h >= 0 ? '+' : ''}{crypto.price_change_percentage_24h.toFixed(2)}%
+              </p>
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-muted-foreground text-sm">Period Low</p>
+              <p className="font-semibold">
+                {chartData.length > 0 ? formatPrice(Math.min(...chartData.map(d => d.price))) : 'N/A'}
+              </p>
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-muted-foreground text-sm">Period High</p>
+              <p className="font-semibold">
+                {chartData.length > 0 ? formatPrice(Math.max(...chartData.map(d => d.price))) : 'N/A'}
+              </p>
+            </div>
+            <div className="text-center space-y-1">
+              <p className="text-muted-foreground text-sm">Data Points</p>
+              <p className="font-semibold">{chartData.length}</p>
+            </div>
+          </div>
         </div>
-      ) : (
-        <div className="h-96">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#374151" />
-              <XAxis 
-                dataKey="date" 
-                stroke="#9CA3AF"
-                fontSize={12}
-              />
-              <YAxis 
-                stroke="#9CA3AF"
-                fontSize={12}
-                tickFormatter={(value) => `$${value.toFixed(2)}`}
-              />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: '#1F2937',
-                  border: '1px solid #374151',
-                  borderRadius: '8px',
-                  color: '#F9FAFB'
-                }}
-                labelStyle={{ color: '#9CA3AF' }}
-                formatter={(value: number) => [`$${value.toFixed(2)}`, 'Price']}
-              />
-              <Line
-                type="monotone"
-                dataKey="price"
-                stroke="#3B82F6"
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 4, stroke: '#3B82F6', strokeWidth: 2 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
+      </DialogContent>
+    </Dialog>
   );
-};
+}

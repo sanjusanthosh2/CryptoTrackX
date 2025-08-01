@@ -2,39 +2,67 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
+/* Crypto Tracker Design System - Dark theme with neon accents */
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Dark crypto theme */
+    --background: 220 26% 6%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 26% 8%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 26% 8%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Crypto green primary */
+    --primary: 142 76% 36%;
+    --primary-foreground: 220 26% 6%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 220 26% 12%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 26% 10%;
+    --muted-foreground: 215 20.2% 65.1%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 220 26% 14%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84.2% 60.2%;
+    /* Crypto red for losses */
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 26% 16%;
+    --input: 220 26% 12%;
+    --ring: 142 76% 36%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Crypto-specific colors */
+    --crypto-green: 142 76% 36%;
+    --crypto-red: 0 84% 60%;
+    --crypto-orange: 25 95% 53%;
+    --crypto-blue: 221 83% 53%;
+    --crypto-purple: 262 83% 58%;
+    --crypto-gold: 45 93% 58%;
+
+    /* Gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(var(--crypto-green)), hsl(var(--crypto-blue)));
+    --gradient-card: linear-gradient(135deg, hsl(var(--card)), hsl(220 26% 10%));
+    --gradient-neon: linear-gradient(90deg, hsl(var(--crypto-green)), hsl(var(--crypto-blue)), hsl(var(--crypto-purple)));
+    
+    /* Glass effects */
+    --glass-bg: 220 26% 8% / 0.8;
+    --glass-border: 220 26% 20% / 0.3;
+    
+    /* Shadows */
+    --shadow-glow: 0 0 40px hsl(var(--crypto-green) / 0.2);
+    --shadow-card: 0 10px 30px -10px hsl(220 26% 4% / 0.5);
+    
+    /* Animation */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 
     --sidebar-background: 0 0% 98%;
 
@@ -98,6 +126,75 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground overflow-x-hidden;
+    background: linear-gradient(135deg, hsl(var(--background)), hsl(220 26% 8%));
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  /* Crypto UI Components */
+  .crypto-card {
+    @apply bg-card border border-border rounded-xl p-6 backdrop-blur-sm;
+    background: var(--gradient-card);
+    box-shadow: var(--shadow-card);
+    transition: var(--transition-smooth);
+  }
+  
+  .crypto-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-glow);
+  }
+  
+  .price-positive {
+    @apply text-green-400;
+    color: hsl(var(--crypto-green));
+  }
+  
+  .price-negative {
+    @apply text-red-400;
+    color: hsl(var(--crypto-red));
+  }
+  
+  .gradient-text {
+    background: var(--gradient-neon);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .glass-card {
+    backdrop-filter: blur(16px);
+    background: hsl(var(--glass-bg));
+    border: 1px solid hsl(var(--glass-border));
+  }
+  
+  /* Animations */
+  .pulse-glow {
+    animation: pulse-glow 2s ease-in-out infinite alternate;
+  }
+  
+  @keyframes pulse-glow {
+    from {
+      box-shadow: 0 0 20px hsl(var(--crypto-green) / 0.2);
+    }
+    to {
+      box-shadow: 0 0 40px hsl(var(--crypto-green) / 0.4);
+    }
+  }
+  
+  .slide-up {
+    animation: slide-up 0.6s ease-out;
+  }
+  
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }

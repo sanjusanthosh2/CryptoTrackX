@@ -1,111 +1,154 @@
+import { useState } from "react";
+import { Search, Star, User, Menu, X, LogOut } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { AuthModal } from "./AuthModal";
+import { NetworkStatus } from "./NetworkStatus";
+import { useAuth } from "@/contexts/AuthContext";
 
-import { useState } from 'react';
-import { TrendingUp, BarChart3, Star, User, LogOut } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { AuthModal } from './AuthModal';
-import { useAuth } from '@/hooks/useAuth';
-import { useNavigate } from 'react-router-dom';
-import { toast } from '@/hooks/use-toast';
+interface HeaderProps {
+  onSearch: (query: string) => void;
+  searchQuery: string;
+  showFavorites: boolean;
+  onToggleFavorites: () => void;
+}
 
-export const Header = () => {
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const { user, signOut } = useAuth();
-  const navigate = useNavigate();
-
-  const handleSignOut = async () => {
-    const { error } = await signOut();
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to sign out",
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Signed out",
-        description: "You have been successfully signed out",
-      });
-      navigate('/');
-    }
-  };
+export function Header({ onSearch, searchQuery, showFavorites, onToggleFavorites }: HeaderProps) {
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const { user, logout } = useAuth();
 
   return (
     <>
-      <header className="bg-slate-900/80 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-50">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/80 backdrop-blur-md">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div 
-              className="flex items-center space-x-3 cursor-pointer"
-              onClick={() => navigate('/')}
-            >
-              <div className="p-2 bg-gradient-to-r from-blue-500 to-emerald-500 rounded-lg">
-                <TrendingUp className="h-6 w-6 text-white" />
+            {/* Logo */}
+            <div className="flex items-center space-x-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-crypto-green to-crypto-blue flex items-center justify-center">
+                <span className="text-background font-bold text-lg">₿</span>
               </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">CryptoTrackX</h1>
-                <p className="text-sm text-gray-400">Real-time Crypto Tracker</p>
+              <span className="text-xl font-bold gradient-text hidden sm:inline">
+                CryptoTracker
+              </span>
+            </div>
+
+            {/* Desktop Search */}
+            <div className="hidden md:flex flex-1 max-w-md mx-8">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search cryptocurrencies..."
+                  value={searchQuery}
+                  onChange={(e) => onSearch(e.target.value)}
+                  className="pl-10 bg-muted/50 border-muted-foreground/20"
+                />
               </div>
             </div>
 
-            <nav className="hidden md:flex items-center space-x-6">
-              <Button 
-                variant="ghost" 
-                className="text-gray-300 hover:text-white hover:bg-slate-800"
-                onClick={() => navigate('/')}
+            {/* Desktop Navigation */}
+            <div className="hidden md:flex items-center space-x-4">
+              <Button
+                variant={showFavorites ? "default" : "outline"}
+                size="sm"
+                onClick={onToggleFavorites}
+                className="gap-2"
               >
-                <BarChart3 className="h-4 w-4 mr-2" />
-                Dashboard
+                <Star className="h-4 w-4" />
+                Favorites
               </Button>
-              
-              {user && (
-                <Button 
-                  variant="ghost" 
-                  className="text-gray-300 hover:text-white hover:bg-slate-800"
-                  onClick={() => navigate('/favorites')}
-                >
-                  <Star className="h-4 w-4 mr-2" />
-                  Favorites
-                </Button>
-              )}
 
               {user ? (
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2 text-gray-300">
-                    <User className="h-4 w-4" />
-                    <span className="text-sm">{user.email}</span>
-                  </div>
-                  <Button 
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    {user.email}
+                  </span>
+                  <Button
                     variant="outline"
-                    className="border-slate-600 text-gray-300 hover:bg-slate-700 hover:text-white"
-                    onClick={handleSignOut}
+                    size="sm"
+                    onClick={logout}
+                    className="gap-2"
                   >
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
+                    <LogOut className="h-4 w-4" />
+                    Logout
                   </Button>
                 </div>
               ) : (
-                <Button 
-                  className="bg-gradient-to-r from-blue-500 to-emerald-500 hover:from-blue-600 hover:to-emerald-600 text-white"
-                  onClick={() => setAuthModalOpen(true)}
+                <Button
+                  onClick={() => setShowAuthModal(true)}
+                  className="gap-2 bg-gradient-to-r from-crypto-green to-crypto-blue text-background hover:opacity-90"
                 >
+                  <User className="h-4 w-4" />
                   Sign In
                 </Button>
               )}
-            </nav>
+            </div>
 
-            <div className="md:hidden">
-              <Button variant="ghost" size="sm" className="text-gray-300 hover:text-white">
-                Menu
-              </Button>
+            {/* Mobile Menu Button */}
+            <Button
+              variant="outline"
+              size="sm"
+              className="md:hidden"
+              onClick={() => setShowMobileMenu(!showMobileMenu)}
+            >
+              {showMobileMenu ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
+            </Button>
+          </div>
+
+          {/* Mobile Search */}
+          <div className="md:hidden mt-4">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search cryptocurrencies..."
+                value={searchQuery}
+                onChange={(e) => onSearch(e.target.value)}
+                className="pl-10 bg-muted/50 border-muted-foreground/20"
+              />
             </div>
           </div>
+
+          {/* Mobile Menu */}
+          {showMobileMenu && (
+            <div className="md:hidden mt-4 space-y-4 pb-4 border-t border-border pt-4">
+              <Button
+                variant={showFavorites ? "default" : "outline"}
+                className="w-full gap-2"
+                onClick={onToggleFavorites}
+              >
+                <Star className="h-4 w-4" />
+                Favorites
+              </Button>
+
+              {user ? (
+                <div className="space-y-2">
+                  <div className="text-center text-sm text-muted-foreground">
+                    {user.email}
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={logout}
+                  >
+                    <LogOut className="h-4 w-4" />
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  className="w-full gap-2 bg-gradient-to-r from-crypto-green to-crypto-blue text-background hover:opacity-90"
+                  onClick={() => setShowAuthModal(true)}
+                >
+                  <User className="h-4 w-4" />
+                  Sign In
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       </header>
 
-      <AuthModal 
-        open={authModalOpen} 
-        onOpenChange={setAuthModalOpen} 
-      />
+      <AuthModal open={showAuthModal} onOpenChange={setShowAuthModal} />
     </>
   );
-};
+}

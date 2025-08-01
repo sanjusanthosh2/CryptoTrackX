@@ -1,9 +1,9 @@
-
-import { useState, useEffect } from 'react';
-import { Header } from '@/components/Header';
-import { CryptoGrid } from '@/components/CryptoGrid';
-import { SearchBar } from '@/components/SearchBar';
-import { toast } from '@/hooks/use-toast';
+import { useState } from "react";
+import { Header } from "@/components/Header";
+import { CryptoGrid } from "@/components/CryptoGrid";
+import { CryptoChart } from "@/components/CryptoChart";
+import { useCryptoData } from "@/hooks/useCryptoData";
+import { useFavorites } from "@/hooks/useFavorites";
 
 interface CryptoData {
   id: string;
@@ -12,90 +12,59 @@ interface CryptoData {
   current_price: number;
   price_change_percentage_24h: number;
   market_cap: number;
-  total_volume: number;
+  market_cap_rank: number;
   image: string;
+  total_volume: number;
+  circulating_supply: number;
+  max_supply?: number;
 }
 
 const Index = () => {
-  const [cryptos, setCryptos] = useState<CryptoData[]>([]);
-  const [filteredCryptos, setFilteredCryptos] = useState<CryptoData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showFavorites, setShowFavorites] = useState(false);
+  const [selectedCrypto, setSelectedCrypto] = useState<CryptoData | null>(null);
+  const [showChart, setShowChart] = useState(false);
 
-  const fetchCryptoData = async () => {
-    try {
-      console.log('Fetching cryptocurrency data...');
-      const response = await fetch(
-        'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=false'
-      );
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch cryptocurrency data');
-      }
-      
-      const data = await response.json();
-      console.log('Crypto data fetched successfully:', data.length, 'coins');
-      setCryptos(data);
-      setFilteredCryptos(data);
-      setLoading(false);
-    } catch (error) {
-      console.error('Error fetching crypto data:', error);
-      toast({
-        title: "Error",
-        description: "Failed to fetch cryptocurrency data. Please try again later.",
-        variant: "destructive",
-      });
-      setLoading(false);
-    }
+  const { cryptos, isLoading, error } = useCryptoData();
+  const { favorites, toggleFavorite } = useFavorites();
+
+  // Filter cryptos based on search query
+  const filteredCryptos = cryptos.filter(crypto =>
+    crypto.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    crypto.symbol.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  const handleViewChart = (crypto: CryptoData) => {
+    setSelectedCrypto(crypto);
+    setShowChart(true);
   };
 
-  useEffect(() => {
-    fetchCryptoData();
-    // Refresh data every 30 seconds
-    const interval = setInterval(fetchCryptoData, 30000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (searchTerm) {
-      const filtered = cryptos.filter(crypto =>
-        crypto.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        crypto.symbol.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-      setFilteredCryptos(filtered);
-    } else {
-      setFilteredCryptos(cryptos);
-    }
-  }, [searchTerm, cryptos]);
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900">
-      <Header />
-      
+    <div className="min-h-screen bg-background">
+      <Header
+        onSearch={setSearchQuery}
+        searchQuery={searchQuery}
+        showFavorites={showFavorites}
+        onToggleFavorites={() => setShowFavorites(!showFavorites)}
+      />
+
       <main className="container mx-auto px-4 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-5xl font-bold text-white mb-4 bg-gradient-to-r from-blue-400 to-emerald-400 bg-clip-text text-transparent">
-            CryptoTrackX
-          </h1>
-          <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-            Track real-time cryptocurrency prices, monitor market trends, and stay ahead of the market
-          </p>
-        </div>
-
-        <div className="mb-8">
-          <SearchBar 
-            searchTerm={searchTerm} 
-            onSearchChange={setSearchTerm}
-            totalCoins={cryptos.length}
-          />
-        </div>
-
-        <CryptoGrid 
-          cryptos={filteredCryptos} 
-          loading={loading}
-          onRefresh={fetchCryptoData}
+        <CryptoGrid
+          cryptos={filteredCryptos}
+          isLoading={isLoading}
+          error={error}
+          favorites={favorites}
+          onToggleFavorite={toggleFavorite}
+          onViewChart={handleViewChart}
+          showFavorites={showFavorites}
         />
       </main>
+
+      <CryptoChart
+        crypto={selectedCrypto}
+        isOpen={showChart}
+        onClose={() => setShowChart(false)}
+      />
     </div>
   );
 };
